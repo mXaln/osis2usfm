@@ -81,7 +81,7 @@ class Converter:
         self.input_dir = input_dir
         self.output_dir = output_dir
 
-        self.book_slug = ""
+        self.book = {}
         self.words = []
         self.word_parts = []
         self.subs = []
@@ -111,16 +111,20 @@ class Converter:
         usfm = ""
 
         book = root.find("book")
-        self.book_slug = book.attrib["osisID"]
+        book_slug = book.attrib["osisID"]
 
-        usfm += r"\id " + self.book_slug.upper() + "\n"
+        self.book = self.get_book(book_slug)
+        if self.book is None:
+            return
+
+        usfm += r"\id " + book_slug.upper() + "\n"
         usfm += r"\usfm " + "3.0\n"
         usfm += r"\ide " + "UTF-8\n"
-        usfm += r"\h " + self.book_slug + "\n"
-        usfm += r"\toc1 " + self.book_slug + "\n"
-        usfm += r"\toc2 " + self.book_slug + "\n"
-        usfm += r"\toc3 " + self.book_slug.capitalize() + "\n"
-        usfm += r"\mt " + self.book_slug + "\n\n"
+        usfm += r"\h " + self.book["name"] + "\n"
+        usfm += r"\toc1 " + self.book["name"] + "\n"
+        usfm += r"\toc2 " + self.book["name"] + "\n"
+        usfm += r"\toc3 " + book_slug.capitalize() + "\n"
+        usfm += r"\mt " + self.book["name"] + "\n\n"
 
         for chapter in root.findall("book/chapter"):
             for verse in chapter.findall("verse"):
@@ -292,23 +296,26 @@ class Converter:
             text += f"\\{tag}\n"
         return text
 
-    @staticmethod
-    def is_nt(slug: str):
-        book = [b for b in books if b["slug"] == slug]
-        if len(book) != 1:
-            print(f"Unknown book: {slug}")
-            return
-
-        return book[0]["sort"] > 39
+    def is_nt(self, book: dict):
+        return book["sort"] > 39
 
     def usfm_word_value(self, tag_name, tag_value):
-        is_new_test = self.is_nt(self.book_slug)
+        is_new_test = self.is_nt(self.book)
         if tag_name == "strongs":
             return self.align_strong_number(tag_value, is_new_test)
         elif tag_name == "morph":
             return self.align_morph(tag_value, is_new_test)
         else:
             return tag_value
+
+    @staticmethod
+    def get_book(slug):
+        book = [b for b in books if b["slug"] == slug]
+        if len(book) != 1:
+            print(f"Unknown book: {slug}")
+            return None
+
+        return book[0]
 
 
 def get_arguments() -> Tuple[Namespace, List[str]]:
