@@ -117,14 +117,14 @@ class Converter:
         if self.book is None:
             return
 
-        usfm += r"\id " + book_slug.upper() + "\n"
-        usfm += r"\usfm " + "3.0\n"
-        usfm += r"\ide " + "UTF-8\n"
-        usfm += r"\h " + self.book["name"] + "\n"
-        usfm += r"\toc1 " + self.book["name"] + "\n"
-        usfm += r"\toc2 " + self.book["name"] + "\n"
-        usfm += r"\toc3 " + book_slug.capitalize() + "\n"
-        usfm += r"\mt " + self.book["name"] + "\n\n"
+        usfm += f"\\id {book_slug.upper()}\n"
+        usfm += f"\\usfm 3.0\n"
+        usfm += f"\\ide UTF-8\n"
+        usfm += f"\\h {self.book['name']}\n"
+        usfm += f"\\toc1 {self.book['name']}\n"
+        usfm += f"\\toc2 {self.book['name']}\n"
+        usfm += f"\\toc3 {book_slug.capitalize()}\n"
+        usfm += f"\\mt {self.book['name']}\n\n"
 
         for chapter in root.findall("book/chapter"):
             for verse in chapter.findall("verse"):
