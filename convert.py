@@ -3,7 +3,7 @@ import re
 import xml.etree.ElementTree as Tree
 from argparse import Namespace
 from pathlib import Path
-from typing import Tuple, List
+from typing import Union
 
 books = [
     {"sort": 1, "slug": "gen", "name": "Genesis"},
@@ -78,6 +78,10 @@ books = [
 class Converter:
 
     def __init__(self, input_dir: Path, output_dir: Path):
+        """
+        Constructor
+        """
+
         self.input_dir = input_dir
         self.output_dir = output_dir
 
@@ -87,6 +91,10 @@ class Converter:
         self.subs = []
 
     def start(self):
+        """
+        Start conversion process
+        """
+
         if self.input_dir is None:
             self.input_dir = Path(".")
         if self.output_dir is None:
@@ -103,6 +111,10 @@ class Converter:
             self.process_xml(file)
 
     def process_xml(self, xml_file: Path):
+        """
+        Process xml file
+        """
+
         if xml_file.suffix != ".xml":
             return
 
@@ -133,7 +145,7 @@ class Converter:
                 self.subs = []
 
                 pre_text = verse.find("preText")
-                pre_tags = self.split_tags(pre_text.text)
+                pre_tags = self.break_tags(pre_text.text)
 
                 verse_text = pre_tags
 
@@ -156,7 +168,9 @@ class Converter:
         with open(usfm_file, "w") as file:
             file.write(usfm)
 
-    def process_word(self, word: Tree.Element):
+    def process_word(self, word: Tree.Element) -> str:
+        """Process word element"""
+
         result = ""
         strongs = " "
 
@@ -179,20 +193,26 @@ class Converter:
         ulb_word = word.text
         source_word = word.attrib["text"] if "text" in word.attrib else ""
 
-        occurrences = self.find_word_occurrences(ulb_word, source_word)
+        order, total = self.find_word_occurrences(ulb_word, source_word)
+        occurrences = f"x-occurrence=\"{order}\" x-occurrences=\"{total}\""
         result += f"\\zaln-s{strongs} {occurrences}\\*"
 
         for part in word.text.split():
             trimmed_part = self.r_trim_word(part)
             if len(trimmed_part) > 0:
-                part_occurrences = self.find_word_part_occurrences(trimmed_part)
+                p_order, p_total = self.find_word_part_occurrences(trimmed_part)
+                part_occurrences = f"x-occurrence=\"{p_order}\" x-occurrences=\"{p_total}\""
                 result += f"\\w {part}|{part_occurrences}\\w*"
 
         result += f"\\zaln-e\\*\n"
 
         return result
 
-    def process_phrase(self, phrase: Tree.Element):
+    def process_phrase(self, phrase: Tree.Element) -> str:
+        """
+        Process phrase element
+        """
+
         result = ""
         for node in phrase.findall("*"):
             if node.tag == "w":
@@ -203,6 +223,10 @@ class Converter:
         return f"{result}\n"
 
     def map_words(self, nodes: list[Tree.Element]):
+        """
+        Put all verse words into words map
+        """
+
         for node in nodes:
             if node.tag == "w":
                 source = node.attrib["text"] if "text" in node.attrib else ""
@@ -212,13 +236,21 @@ class Converter:
                 self.map_words(node.findall("*"))
 
     def map_word_parts(self):
+        """
+        Split complex words into parts and add them to word parts map
+        """
+
         for word in self.words:
             parts = word["word"].split()
             for part in parts:
                 dic = {"word": self.r_trim_word(part), "source": word["source"], "count": 0}
                 self.word_parts.append(dic)
 
-    def find_word_occurrences(self, word, source):
+    def find_word_occurrences(self, word: str, source: str) -> tuple[int, int]:
+        """
+        Find and calculate word occurrences
+        """
+
         trimmed = self.r_trim_word(word)
 
         index = "word" if len(trimmed) > 0 else "source"
@@ -232,11 +264,16 @@ class Converter:
         self.words = list(map(func, self.words))
         found = [w for w in self.words if w[index] == search]
 
-        occurrence = found[0]["count"] if len(found) > 0 else 0
-        occurrences = len(found)
-        return f"x-occurrence=\"{occurrence}\" x-occurrences=\"{occurrences}\""
+        order = found[0]["count"] if len(found) > 0 else 0
+        total = len(found)
 
-    def find_word_part_occurrences(self, word):
+        return order, total
+
+    def find_word_part_occurrences(self, word: str) -> tuple[int, int]:
+        """
+        Find and calculate word parts occurrences
+        """
+
         def func(p):
             if p["word"] == word:
                 p["count"] += 1
@@ -245,20 +282,28 @@ class Converter:
         self.word_parts = list(map(func, self.word_parts))
         found = [p for p in self.word_parts if p["word"] == word]
 
-        occurrence = found[0]["count"] if len(found) > 0 else 0
-        occurrences = len(found)
+        order = found[0]["count"] if len(found) > 0 else 0
+        total = len(found)
 
-        return f"x-occurrence=\"{occurrence}\" x-occurrences=\"{occurrences}\""
+        return order, total
 
     @staticmethod
-    def r_trim_word(word):
+    def r_trim_word(word: str) -> str:
+        """
+        Remove non-alpha characters from the end of the word
+        """
+
         trimmed = word
         if not word[-1].isalpha():
             trimmed = word.strip(word[-1])
         return trimmed
 
     @staticmethod
-    def usfm_word_tag(tag_name):
+    def usfm_word_tag(tag_name: str) -> Union[str, None]:
+        """
+        Transform OSIS word attributes to USFM format
+        """
+
         if tag_name == "strongs":
             return "x-strong"
         elif tag_name == "lemma":
@@ -271,7 +316,11 @@ class Converter:
             return None
 
     @staticmethod
-    def align_strong_number(value, is_nt):
+    def align_strong_number(value: str, is_nt: bool) -> str:
+        """
+        Transform OSIS strong number to USFM format
+        """
+
         if is_nt:
             number = f"{value[1:]}0"
             value = f"{value[0]}{number.zfill(5)}"
@@ -279,13 +328,21 @@ class Converter:
         return value
 
     @staticmethod
-    def align_morph(value, is_nt):
+    def align_morph(value: str, is_nt: bool) -> str:
+        """
+        Transform OSIS morph value to USFM format
+        """
+
         lang = "Gr" if is_nt else "He"
         value = re.sub(r"-", ",", value)
         return f"{lang},{value}"
 
     @staticmethod
-    def split_tags(text: str):
+    def break_tags(text: str) -> str:
+        """
+        Break string of USFM tags into multiple lines
+        """
+
         tags = text.split(f"\\")
         text = ""
         for tag in tags:
@@ -296,10 +353,19 @@ class Converter:
             text += f"\\{tag}\n"
         return text
 
-    def is_nt(self, book: dict):
+    @staticmethod
+    def is_nt(book: dict) -> bool:
+        """
+        Find if the given book is from New Testament
+        """
+
         return book["sort"] > 39
 
-    def usfm_word_value(self, tag_name, tag_value):
+    def usfm_word_value(self, tag_name: str, tag_value: str) -> str:
+        """
+        Transform OSIS attribute value into USFM format
+        """
+
         is_new_test = self.is_nt(self.book)
         if tag_name == "strongs":
             return self.align_strong_number(tag_value, is_new_test)
@@ -309,7 +375,11 @@ class Converter:
             return tag_value
 
     @staticmethod
-    def get_book(slug):
+    def get_book(slug) -> Union[dict, None]:
+        """
+        Get book from the list of books
+        """
+
         book = [b for b in books if b["slug"] == slug]
         if len(book) != 1:
             print(f"Unknown book: {slug}")
@@ -318,7 +388,7 @@ class Converter:
         return book[0]
 
 
-def get_arguments() -> Tuple[Namespace, List[str]]:
+def get_arguments() -> tuple[Namespace, list[str]]:
     """ Parse command line arguments """
 
     parser = argparse.ArgumentParser(description='Convert OSIS xml to USFM aligned')
