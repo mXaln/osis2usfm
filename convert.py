@@ -1,6 +1,6 @@
 import argparse
-import xml.etree.ElementTree as Tree
 import re
+import xml.etree.ElementTree as Tree
 from argparse import Namespace
 from pathlib import Path
 from typing import Tuple, List
