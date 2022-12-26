@@ -3,7 +3,7 @@ Convert OSIS xml to aligned USFM
 
 ### How to use
 
-```python convert.py -i <Path to folder with xml files> -o <Path to output folder>```
+```python osis2usfm.py -i <Path to folder with xml files> -o <Path to output folder>```
 
 ### Minimal requirements
 
