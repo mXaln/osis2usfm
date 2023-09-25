@@ -123,6 +123,11 @@ class Converter:
         usfm = ""
 
         book = root.find("book")
+
+        if book is None:
+            print("Book tag not found")
+            return
+
         book_slug = book.attrib["osisID"]
 
         self.book = self.get_book(book_slug)
@@ -139,15 +144,25 @@ class Converter:
         usfm += f"\\mt {self.book['name']}\n\n"
 
         for chapter in root.findall("book/chapter"):
+            chapter_number = self.get_chapter_number(chapter)
+            chapter_inserted = False
             for verse in chapter.findall("verse"):
+                verse_number = self.get_verse_number(verse)
                 self.words = []
                 self.word_parts = []
                 self.subs = []
 
                 pre_text = verse.find("preText")
-                pre_tags = self.break_tags(pre_text.text)
+                verse_text = ""
 
-                verse_text = pre_tags
+                if pre_text is None:
+                    if not chapter_inserted:
+                        verse_text += "\\s5\n\\c " + chapter_number + "\n"
+                        chapter_inserted = True
+                    verse_text += "\\v " + verse_number + " "
+                else:
+                    pre_tags = self.break_tags(pre_text.text)
+                    verse_text += pre_tags
 
                 self.map_words(verse.findall("*"))
                 self.map_word_parts()
@@ -386,6 +401,36 @@ class Converter:
             return None
 
         return book[0]
+
+    @staticmethod
+    def get_chapter_number(chapter) -> str:
+        """
+        Get chapter number from chapter osis id
+        """
+
+        chapter_number = "0"
+
+        if "osisID" in chapter.attrib:
+            chapter_number = re.sub(r"^\w{3}\.(\d+)$", r"\1", chapter.attrib["osisID"])
+        elif "name" in chapter.attrib:
+            chapter_number = re.sub(r"^\d*\s?\w+\s(\d+)$", r"\1", chapter.attrib["name"])
+
+        return chapter_number
+
+    @staticmethod
+    def get_verse_number(verse) -> str:
+        """
+        Get verse number from verse osis id
+        """
+
+        verse_number = "0"
+
+        if "osisID" in verse.attrib:
+            verse_number = re.sub(r"^\w{3}\.\d+\.(\d+)$", r"\1", verse.attrib["osisID"])
+        elif "name" in verse.attrib:
+            verse_number = re.sub(r"^\d*\s?\w+\s\d+:(\d+)$", r"\1", verse.attrib["name"])
+
+        return verse_number
 
 
 def get_arguments() -> tuple[Namespace, list[str]]:
